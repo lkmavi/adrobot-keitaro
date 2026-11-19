@@ -1,8 +1,14 @@
 # Local planning, secrets and credentials
 /agents-flow/
+/.agents/
+/.codex/
+/.aws/
+/.secrets/
 .env
 .env.*
 !.env.example
+.envrc
+credentials.json
 *.pem
 *.key
 *.p12
