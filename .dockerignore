@@ -4,6 +4,12 @@
 .venv
 venv
 agents-flow
+.agents
+.codex
+.aws
+.secrets
+.envrc
+credentials.json
 __pycache__
 .pytest_cache
 .mypy_cache
