@@ -1,5 +1,7 @@
 """Keitaro resource management routes."""
 
+import logging
+
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -7,6 +9,7 @@ from app import context as ctx
 from app.clients.keitaro import KeitaroError
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/resources", response_class=HTMLResponse)
@@ -50,8 +53,10 @@ async def create_resource(
         if isinstance(exc, KeitaroError) and exc.status_code == 403:
             ctx.access_policy.deny(kind)
         ctx.logger.warning(
-            "Resource creation failed: kind=%s",
+            "Resource creation failed: kind=%s error_type=%s status=%s",
             kind if kind in {"group", "domain", "source", "offer"} else "unknown",
+            type(exc).__name__,
+            exc.status_code if isinstance(exc, KeitaroError) else None,
         )
         return ctx.templates.TemplateResponse(
             request=request,
@@ -77,6 +82,7 @@ RESOURCE_PATHS = {
 async def resource_options(kind: str) -> JSONResponse:
     """Return the current options for a supported resource type."""
     if kind not in RESOURCE_PATHS:
+        logger.warning("Resource options rejected: kind=%s reason=unsupported", kind)
         return JSONResponse({"error": "Неизвестный тип ресурса"}, status_code=400)
     try:
         resources = await ctx.client.request("GET", RESOURCE_PATHS[kind])
@@ -87,6 +93,7 @@ async def resource_options(kind: str) -> JSONResponse:
         ]
         return JSONResponse({"options": options}, headers={"Cache-Control": "no-store"})
     except KeitaroError as exc:
+        logger.error("Resource options request failed: kind=%s status=%s", kind, exc.status_code)
         return JSONResponse({"error": str(exc)}, status_code=exc.status_code or 502)
 
 
@@ -100,10 +107,15 @@ async def create_resource_inline(
         resource_id = await ctx.resource_service.create(kind, name, url)
         return JSONResponse({"id": resource_id})
     except ValueError as exc:
+        logger.warning("Inline resource creation validation failed: kind=%s", kind)
         return JSONResponse({"error": str(exc)}, status_code=400)
     except PermissionError as exc:
+        logger.warning("Inline resource creation denied: kind=%s", kind)
         return JSONResponse({"error": str(exc)}, status_code=403)
     except KeitaroError as exc:
+        logger.error(
+            "Inline resource creation failed upstream: kind=%s status=%s", kind, exc.status_code
+        )
         if exc.status_code == 403:
             ctx.access_policy.deny(kind)
         return JSONResponse({"error": str(exc)}, status_code=exc.status_code or 502)

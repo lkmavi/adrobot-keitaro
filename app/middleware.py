@@ -16,14 +16,19 @@ async def log_requests(request: Request, call_next: Any) -> Response:
     try:
         response: Response = await call_next(request)
     except Exception as exc:
-        logger.error("Request failed: exception_type=%s", type(exc).__name__)
+        logger.exception("Request failed: exception_type=%s", type(exc).__name__)
         raise
 
     route = request.scope.get("route")
     route_path = getattr(route, "path", "unmatched")
     if route_path not in {"/health", "/static"}:
         elapsed_ms = round((time.monotonic() - started) * 1000)
-        logger.info(
+        log = (
+            logger.error
+            if response.status_code >= 500
+            else (logger.warning if response.status_code >= 400 else logger.info)
+        )
+        log(
             "HTTP request: method=%s route=%s status=%s duration_ms=%s",
             request.method,
             route_path,
@@ -39,6 +44,7 @@ async def protect_local_forms(request: Request, call_next: Any) -> Any:
         origin = request.headers.get("origin", "")
         expected = str(request.base_url).rstrip("/")
         if origin != expected:
+            logger.warning("Form submission rejected by origin check: route=%s", request.url.path)
             return HTMLResponse("Недопустимый источник запроса", status_code=403)
 
     return await call_next(request)

@@ -27,6 +27,8 @@ class JsonLogFormatter(logging.Formatter):
             "line": record.lineno,
             "message": record.getMessage(),
         }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
 
         return json.dumps(payload, ensure_ascii=False)
 
