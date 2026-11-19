@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="description" content="Управление кампаниями и потоками Keitaro">
+  <title>{% block title %}Adrobot{% endblock %} · Adrobot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=6">
+</head>
+<body>
+  <a class="skip" href="#main">Перейти к содержимому</a>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <a class="brand" href="/"><span class="brand-mark">a</span><span>adrobot<small>WORKSPACE</small></span></a>
+      <div class="side-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+      <nav class="nav" aria-label="Основная навигация">
+        <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}" {% if request.url.path == '/' %}aria-current="page"{% endif %}><span class="nav-icon">⊞</span> Создать кампанию</a>
+        <a href="/editor" class="nav-link {% if request.url.path.startswith('/editor') or request.url.path.startswith('/campaigns/') %}active{% endif %}" {% if request.url.path.startswith('/editor') or request.url.path.startswith('/campaigns/') %}aria-current="page"{% endif %}><span class="nav-icon">≡</span> Редактор потоков</a>
+        <a href="http://127.0.0.1:3300/d/adrobot-logs/adrobot?from=now-24h&amp;to=now&amp;refresh=10s" class="nav-link" target="_blank" rel="noopener noreferrer"><span class="nav-icon">≋</span> Журнал событий ↗</a>
+      </nav>
+      <div class="sidebar-bottom"><span class="status-dot"></span><div><strong>Keitaro</strong><small>Рабочее пространство</small></div></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><span>Рабочее пространство <span class="crumb">/</span> {% block breadcrumb %}Кампании{% endblock %}</span><span class="top-tag"><span class="status-dot"></span> Keitaro Admin API</span></header>
+      <main id="main" class="shell">
+        {% if error %}<div class="notice error" role="alert"><strong>Не удалось выполнить действие</strong><span>{{ error }}</span></div>{% endif %}
+        {% if message %}<div class="notice success" role="status"><strong>Готово</strong><span>{{ message }}</span></div>{% endif %}
+        {% block content %}{% endblock %}
+      </main>
+      <footer class="footer"><span>ADROBOT <span>·</span> CAMPAIGN WORKSPACE</span><span>Управление трафиком в одном месте</span></footer>
+    </div>
+  </div>
+</body>
+</html>
