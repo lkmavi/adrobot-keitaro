@@ -1,4 +1,4 @@
-"""Creation of supported Keitaro resources."""
+"""Validate and create groups, domains, traffic sources, and offers."""
 
 import ipaddress
 import logging
@@ -11,13 +11,19 @@ logger = logging.getLogger(__name__)
 
 
 class ResourceService:
-    """Validate and create supported Keitaro resources."""
+    """Apply resource-specific validation before calling the Keitaro API."""
 
     def __init__(self, client: KeitaroClient):
+        """Use the shared API client for resource creation requests."""
         self.client = client
 
     async def create(self, kind: str, name: str, url: str = "") -> int:
-        """Validate and create a supported resource in Keitaro."""
+        """Validate and create one resource, returning its Keitaro ID.
+
+        Group names receive the configured campaign prefix, domains must be
+        hostnames, and offers must use an HTTP or HTTPS URL. Invalid input raises
+        ``ValueError`` before a request is sent.
+        """
         logger.debug("Resource creation started: kind=%s", kind)
         name = name.strip()
         if not name or kind not in {"group", "domain", "source", "offer"}:

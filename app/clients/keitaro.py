@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class KeitaroError(Exception):
-    """A sanitized API error with an optional upstream HTTP status."""
+    """Expose a safe API error while retaining the upstream status for callers."""
 
     def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
@@ -19,7 +19,12 @@ class KeitaroError(Exception):
 
 
 class KeitaroClient:
-    """Send authenticated requests to the Keitaro Admin API."""
+    """Call the Keitaro Admin API and translate transport failures safely.
+
+    Request credentials and payloads are deliberately omitted from logs; API
+    failures retain their status code so routes can distinguish permission
+    errors from upstream outages.
+    """
 
     def __init__(self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None):
         """Initialize the client with settings and an optional test transport."""
@@ -28,7 +33,11 @@ class KeitaroClient:
         self.transport = transport
 
     async def request(self, method: str, path: str, **kwargs: Any) -> Any:
-        """Send an Admin API request and translate upstream failures."""
+        """Send one authenticated request and return its decoded JSON payload.
+
+        Empty responses return ``None``. HTTP and connection errors become
+        :class:`KeitaroError` instances with sanitized user-facing messages.
+        """
         if not self.settings.keitaro_url or not self.settings.keitaro_api_key:
             logger.error("Keitaro request rejected: API URL or API key is not configured")
             raise KeitaroError("Укажите KEITARO_URL и KEITARO_API_KEY в .env")

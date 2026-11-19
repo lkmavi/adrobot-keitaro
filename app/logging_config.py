@@ -1,4 +1,4 @@
-"""Structured logging configuration."""
+"""Configure searchable console and JSON logs for the application service."""
 
 import json
 import logging
@@ -9,7 +9,7 @@ from app.config import Settings
 
 
 class JsonLogFormatter(logging.Formatter):
-    """Format an application log record as a single JSON line."""
+    """Serialize searchable log metadata and exception tracebacks as JSON."""
 
     def __init__(self, service_name: str):
         super().__init__()
@@ -34,7 +34,11 @@ class JsonLogFormatter(logging.Formatter):
 
 
 def configure_logging(settings: Settings) -> None:
-    """Configure application logging and optional rotating JSON output."""
+    """Set the application log level and attach an optional rotating JSON file.
+
+    Third-party HTTP client logs stay at warning level to avoid duplicate
+    request details and accidental exposure of transport metadata.
+    """
     log_format = (
         f"%(asctime)s %(levelname)s service={settings.service_name} "
         "logger=%(name)s function=%(funcName)s %(message)s"

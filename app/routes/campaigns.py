@@ -1,4 +1,4 @@
-"""Campaign creation and stream editor routes."""
+"""Render campaign workflows and pass validated actions to application services."""
 
 import logging
 from typing import Any
@@ -16,12 +16,16 @@ logger = logging.getLogger(__name__)
 
 @router.get("/health")
 async def health() -> dict[str, str]:
-    """Return the process health status without calling Keitaro."""
+    """Report process availability without depending on the Keitaro API."""
     return {"status": "ok"}
 
 
 async def render_home(request: Request, message: str = "", error: str = "") -> HTMLResponse:
-    """Render campaign creation with current Keitaro resources."""
+    """Render the creation form with current selectable resources and rights.
+
+    If any resource list cannot be loaded, keep the form available and show a
+    sanitized API error alongside the lists that were retrieved successfully.
+    """
     data: dict[str, Any] = {"domains": [], "groups": [], "sources": [], "offers": []}
     try:
         for key, path in (
@@ -53,19 +57,19 @@ async def render_home(request: Request, message: str = "", error: str = "") -> H
 
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request) -> HTMLResponse:
-    """Display the campaign creation page."""
+    """Show the campaign form and any result message from the previous action."""
     return await render_home(request, message=request.query_params.get("message", ""))
 
 
 @router.get("/editor", response_class=HTMLResponse)
 async def editor_start(request: Request) -> HTMLResponse:
-    """Display the campaign lookup page."""
+    """Show the page where a campaign ID can be entered for editing."""
     return ctx.templates.TemplateResponse(request=request, name="editor_start.html", context={})
 
 
 @router.get("/editor/open")
 async def open_editor(campaign_id: int) -> RedirectResponse:
-    """Redirect to the editor for a valid campaign ID."""
+    """Send positive campaign IDs to the editor and invalid IDs to lookup."""
     if campaign_id <= 0:
         return RedirectResponse("/editor", status_code=303)
     return RedirectResponse(f"/campaigns/{campaign_id}", status_code=303)
@@ -81,7 +85,7 @@ async def create_campaign(
     group_id: int = Form(),
     source_id: int = Form(),
 ) -> HTMLResponse:
-    """Create a campaign from a validated form submission."""
+    """Create the campaign and streams, then render success or a readable error."""
     try:
         campaign_id = await ctx.service.create(name, geo, offer_id, domain_id, group_id, source_id)
         return await render_home(request, message=f"Кампания {campaign_id} создана")
@@ -93,7 +97,7 @@ async def create_campaign(
 async def render_editor(
     request: Request, campaign_id: int, error: str = "", message: str = ""
 ) -> HTMLResponse:
-    """Render streams, offer names, and their saved drafts."""
+    """Load campaign streams and offer labels for rendering the draft editor."""
     try:
         streams = await ctx.client.request("GET", f"/campaigns/{campaign_id}/streams")
         offers = await ctx.client.request("GET", "/offers")
@@ -130,14 +134,14 @@ async def render_editor(
 
 @router.get("/campaigns/{campaign_id}", response_class=HTMLResponse)
 async def editor(request: Request, campaign_id: int) -> HTMLResponse:
-    """Display the stream editor for a campaign."""
+    """Open the stream editor and record which campaign is being viewed."""
     ctx.logger.info("Campaign editor opened: campaign_id=%s", campaign_id)
     return await render_editor(request, campaign_id)
 
 
 @router.post("/campaigns/{campaign_id}/fetch", response_class=HTMLResponse)
 async def fetch(request: Request, campaign_id: int) -> HTMLResponse:
-    """Refresh the local stream snapshots from Keitaro."""
+    """Refresh local stream snapshots unless a draft has unpublished changes."""
     try:
         await ctx.service.fetch(campaign_id)
         return await render_editor(request, campaign_id, message="Потоки загружены")
@@ -159,7 +163,11 @@ async def edit_stream(
     offer_id: int = Form(0),
     share: int = Form(0),
 ) -> Response:
-    """Update, cancel, or publish a campaign stream draft."""
+    """Apply an editor action after confirming the stream belongs to the campaign.
+
+    Draft edits stay local until the publish action passes the service's remote
+    snapshot check and is written to Keitaro.
+    """
     try:
         current = ctx.store.get(stream_id)
         if not current or current[0]["campaign_id"] != campaign_id:

@@ -1,4 +1,4 @@
-"""Traffic-share distribution calculations."""
+"""Calculate offer traffic shares while preserving explicit operator choices."""
 
 import logging
 from typing import Any
@@ -7,7 +7,13 @@ logger = logging.getLogger(__name__)
 
 
 def redistribute(offers: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Distribute traffic shares among active offers while preserving pinned shares."""
+    """Return copied offers with valid shares totaling 100 percent.
+
+    Pinned active offers keep their assigned shares. Remaining traffic is divided
+    evenly among unpinned active offers, with remainder points assigned in list
+    order; archived offers always receive zero. Invalid pinned totals raise
+    ``ValueError`` without changing the caller's input.
+    """
     logger.debug("Redistributing offer shares: offer_count=%s", len(offers))
     result = [dict(offer) for offer in offers]
 

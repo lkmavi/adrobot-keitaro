@@ -1,4 +1,8 @@
-"""Shared dependencies and server-side template configuration."""
+"""Build the process-wide services and template environment used by routes.
+
+The context module provides one configured instance of each adapter and service
+so route handlers share the same draft store and observed access restrictions.
+"""
 
 import logging
 from pathlib import Path

@@ -1,10 +1,15 @@
-"""Application settings loaded from the environment."""
+"""Environment-backed configuration shared by the application layers."""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Settings loaded from environment variables and an optional dotenv file."""
+    """Configure API access, campaign defaults, persistence, and application logs.
+
+    Values are read from environment variables, with an optional local ``.env``
+    file for development. Defaults keep the application importable without API
+    credentials so that health checks and local tests can run independently.
+    """
 
     keitaro_url: str = ""
 

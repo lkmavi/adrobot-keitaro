@@ -1,4 +1,4 @@
-"""Campaign creation and stream editing use cases."""
+"""Coordinate campaign creation and safe, draft-based stream publication."""
 
 import logging
 from copy import deepcopy
@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 class PartialCreationError(Exception):
-    """Report a campaign created without all required streams."""
+    """Signal that campaign creation succeeded but a follow-up stream failed."""
 
 
 def remote_signature(stream: dict[str, Any]) -> list[tuple[int, int, str]]:
-    """Return a stable representation of the upstream offer assignments."""
+    """Normalize offer IDs, shares, and states for order-independent comparison."""
     return sorted(
         (int(item["offer_id"]), int(item.get("share", 0)), item.get("state", "active"))
         for item in stream.get("offers", [])
@@ -25,17 +25,25 @@ def remote_signature(stream: dict[str, Any]) -> list[tuple[int, int, str]]:
 
 
 class CampaignService:
-    """Coordinate campaign creation and stream editing."""
+    """Apply campaign and stream use cases through Keitaro and local storage.
+
+    Stream changes are staged in SQLite first. Publication compares the saved
+    baseline with Keitaro before writing, which prevents overwriting remote edits.
+    """
 
     def __init__(self, client: KeitaroClient, store: Store):
-        """Initialize the campaign service with its dependencies."""
+        """Bind the API client and draft store used by campaign operations."""
         self.client = client
         self.store = store
 
     async def create(
         self, name: str, geo: str, offer_id: int, domain: int, group: int, source: int
     ) -> int:
-        """Create a campaign and its GEO and offer streams."""
+        """Create a prefixed campaign with a GEO redirect and default offer.
+
+        Check the offer before creating the campaign. If stream creation fails
+        after the campaign exists, raise :class:`PartialCreationError` with its ID.
+        """
         logger.debug("Campaign creation started: geo=%s", geo.strip().upper())
         name, geo = name.strip(), geo.strip().upper()
 
@@ -115,7 +123,11 @@ class CampaignService:
         return campaign_id
 
     async def fetch(self, campaign_id: int) -> list[dict[str, Any]]:
-        """Refresh streams while preserving previously archived offers."""
+        """Refresh snapshots while retaining locally archived offer rows.
+
+        Refuse to refresh when a stream has unpublished edits, since a refresh
+        would otherwise discard the operator's pending changes.
+        """
         logger.debug("Fetching streams: campaign_id=%s", campaign_id)
 
         streams = await self.client.request("GET", f"/campaigns/{campaign_id}/streams")
@@ -167,7 +179,11 @@ class CampaignService:
         return streams
 
     async def edit(self, stream_id: int, action: str, offer_id: int = 0, share: int = 0) -> None:
-        """Apply an offer action to the local stream draft."""
+        """Change a draft by adding, archiving, restoring, or pinning an offer.
+
+        Recalculate shares after each offer action. The ``cancel`` action restores
+        the saved baseline without sending a write request to Keitaro.
+        """
         current = self.store.get(stream_id)
         if not current:
             logger.warning("Stream edit rejected: stream_id=%s reason=draft_not_loaded", stream_id)
@@ -210,7 +226,11 @@ class CampaignService:
         logger.debug("Draft updated: stream_id=%s action=%s", stream_id, action)
 
     async def publish(self, stream_id: int) -> None:
-        """Publish a draft after checking for upstream changes."""
+        """Write a draft only when its baseline still matches the remote stream.
+
+        Read the stream back after saving and update the local baseline only when
+        Keitaro confirms the expected offer assignments.
+        """
         current = self.store.get(stream_id)
         if not current:
             logger.warning(
