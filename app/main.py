@@ -1,4 +1,4 @@
-"""FastAPI application assembly."""
+"""Create the FastAPI application and attach its routes and middleware."""
 
 import logging
 

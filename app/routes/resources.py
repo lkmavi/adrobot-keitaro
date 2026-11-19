@@ -1,4 +1,4 @@
-"""Keitaro resource management routes."""
+"""Render resource forms and expose current Keitaro options to the frontend."""
 
 import logging
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/resources", response_class=HTMLResponse)
 async def resources_page(request: Request, campaign_id: int = 0) -> HTMLResponse:
-    """Display resource creation forms."""
+    """Show supported resource forms and the currently known creation rights."""
     return ctx.templates.TemplateResponse(
         request=request,
         name="resources.html",
@@ -34,7 +34,7 @@ async def create_resource(
     url: str = Form(""),
     campaign_id: int = Form(0),
 ) -> HTMLResponse:
-    """Create a resource and render the result."""
+    """Create a resource and show a result without losing campaign navigation."""
     try:
         ctx.access_policy.require_create(kind)
         resource_id = await ctx.resource_service.create(kind, name, url)
@@ -80,7 +80,7 @@ RESOURCE_PATHS = {
 
 @router.get("/resources/options/{kind}")
 async def resource_options(kind: str) -> JSONResponse:
-    """Return the current options for a supported resource type."""
+    """Fetch fresh options for one supported resource type without caching them."""
     if kind not in RESOURCE_PATHS:
         logger.warning("Resource options rejected: kind=%s reason=unsupported", kind)
         return JSONResponse({"error": "Неизвестный тип ресурса"}, status_code=400)
@@ -101,7 +101,7 @@ async def resource_options(kind: str) -> JSONResponse:
 async def create_resource_inline(
     kind: str = Form(), name: str = Form(), url: str = Form("")
 ) -> JSONResponse:
-    """Create a resource and return its ID for the inline form."""
+    """Create a resource from an editor field and return its new Keitaro ID."""
     try:
         ctx.access_policy.require_create(kind)
         resource_id = await ctx.resource_service.create(kind, name, url)

@@ -1,4 +1,4 @@
-"""SQLite storage for stream drafts and published snapshots."""
+"""Persist stream baselines and editable drafts independently of Keitaro."""
 
 import json
 import logging
@@ -11,7 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 class Store:
-    """Persist stream snapshots and drafts in SQLite."""
+    """Store each stream's published baseline beside its current working copy.
+
+    Keeping both snapshots lets the service detect local edits and upstream
+    changes before replacing a stream in Keitaro.
+    """
 
     def __init__(self, path: str):
         """Initialize the SQLite database and its schema."""
@@ -27,7 +31,7 @@ class Store:
         logger.info("Draft storage initialized: database=%s", path)
 
     def get(self, stream_id: int) -> tuple[dict[str, Any], dict[str, Any]] | None:
-        """Return the published snapshot and draft for a stream, if present."""
+        """Return ``(baseline, working_copy)`` or ``None`` when no draft exists."""
         logger.debug("Draft lookup started: stream_id=%s", stream_id)
         try:
             with closing(sqlite3.connect(self.path)) as db, db:
@@ -43,7 +47,7 @@ class Store:
             raise
 
     def put(self, stream_id: int, base: dict[str, Any], working: dict[str, Any]) -> None:
-        """Persist a stream snapshot and draft in a single transaction."""
+        """Atomically replace both snapshots so they cannot become inconsistent."""
         logger.debug("Draft save started: stream_id=%s", stream_id)
         try:
             with closing(sqlite3.connect(self.path)) as db, db:

@@ -11,7 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 async def log_requests(request: Request, call_next: Any) -> Response:
-    """Log request outcomes without headers, bodies, or query parameters."""
+    """Log route, status, and duration without request data that may be private.
+
+    Re-raise unexpected handler exceptions after recording their traceback so
+    FastAPI can return its normal error response.
+    """
     started = time.monotonic()
     try:
         response: Response = await call_next(request)
@@ -39,7 +43,11 @@ async def log_requests(request: Request, call_next: Any) -> Response:
 
 
 async def protect_local_forms(request: Request, call_next: Any) -> Any:
-    """Reject state-changing form submissions from another origin."""
+    """Allow POST form requests only when their Origin matches this service.
+
+    This prevents another site from submitting state-changing requests through
+    a user's open browser session.
+    """
     if request.method == "POST":
         origin = request.headers.get("origin", "")
         expected = str(request.base_url).rstrip("/")
