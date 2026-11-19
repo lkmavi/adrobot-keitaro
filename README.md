@@ -1,112 +1,114 @@
-# Adrobot for Keitaro
+# Adrobot для Keitaro
 
-A small web application for creating test campaigns and editing offer distribution through the Keitaro Admin API. The interface is in Russian; application logs and developer documentation are in English.
+Веб-приложение для создания тестовых кампаний и редактирования распределения офферов через Keitaro Admin API. Интерфейс приложения — на русском языке, сообщения журнала и документация в коде — на английском.
 
 [![CI](https://github.com/lkmavi/adrobot-keitaro/actions/workflows/ci.yml/badge.svg)](https://github.com/lkmavi/adrobot-keitaro/actions/workflows/ci.yml)
 
-## Features
+## Возможности
 
-- Create a campaign with a country-specific redirect and a fallback offer stream.
-- Select existing domains, campaign groups, traffic sources, and offers, or create supported resources when the API credentials allow it.
-- Edit stream offers as a local draft, pin traffic shares, restore archived offers, and publish changes explicitly.
-- Detect upstream offer changes before publishing and verify the result after the update.
-- Search structured application logs by service, level, module, and function in Grafana.
+- Создание кампании с перенаправлением посетителей из выбранной страны и резервным потоком на оффер.
+- Выбор существующих доменов, групп кампаний, источников трафика и офферов. Поддерживаемые ресурсы можно создать из интерфейса, если это разрешено ключу API.
+- Редактирование офферов в локальном черновике: добавление, удаление, восстановление, закрепление долей и отдельная публикация потока.
+- Проверка изменений в Keitaro перед публикацией и повторное чтение результата после неё.
+- Поиск структурированных журналов по сервису, уровню, модулю и функции в Grafana.
 
-Keitaro is the source of truth for published campaigns. SQLite stores local drafts, pinned shares, and archived offer assignments. Traffic shares are whole percentages; any remainder is assigned deterministically in list order.
+Keitaro хранит опубликованные кампании. Локальная SQLite хранит черновики, закреплённые доли и архив привязок офферов. Доли выражаются целыми процентами; остаток распределяется по порядку списка.
 
-## Requirements
+## Требования
 
-- Docker with Compose, for the application and local observability stack; or Python 3.12+ and [uv](https://docs.astral.sh/uv/) for local development.
-- A Keitaro instance with Admin API access and credentials with the required permissions.
-- Existing Keitaro resources for the campaign. Adding a domain to Keitaro does not register it or configure DNS.
+- Docker с Compose для запуска приложения и локального стека журналирования; либо Python 3.12+ и [uv](https://docs.astral.sh/uv/) для локальной разработки.
+- Экземпляр Keitaro с Admin API и ключом с необходимыми правами.
+- Подходящие ресурсы Keitaro для кампании. Добавление домена в Keitaro не регистрирует его и не настраивает DNS.
 
-## Quick start
+## Быстрый запуск
 
 ```bash
 cp .env.example .env
-# Edit .env and set KEITARO_URL and KEITARO_API_KEY.
+# Укажите KEITARO_URL и KEITARO_API_KEY в файле .env.
 make docker-up
 ```
 
-Open [the application](http://127.0.0.1:8000). The first build also starts Loki, Alloy, and Grafana. Open the [log dashboard](http://127.0.0.1:3300/d/adrobot-logs/adrobot?from=now-24h&to=now&refresh=10s) or use **Журнал событий** in the application.
+Откройте [приложение](http://127.0.0.1:8000). Вместе с ним запускаются Loki, Alloy и Grafana. Для просмотра событий откройте [панель логов](http://127.0.0.1:3300/d/adrobot-logs/adrobot?from=now-24h&to=now&refresh=10s) или выберите **«Журнал событий»** в приложении.
 
-Stop the stack with `make docker-down`. Named Docker volumes retain application data and logs. Do not use `docker compose down -v` unless you intend to delete those volumes.
+Остановка — `make docker-down`. Именованные тома Docker сохраняют данные приложения и логи. Не используйте `docker compose down -v`, если не хотите удалить эти данные.
 
-For local development without the observability stack:
+Для локальной разработки без стека журналирования:
 
 ```bash
 cp .env.example .env
-# Set your API settings and DATABASE_PATH=./adrobot.sqlite3 in .env.
+# Укажите настройки API и DATABASE_PATH=./adrobot.sqlite3 в .env.
 make install
 make run
 ```
 
-Never commit `.env` or share an API key. Use a dedicated test instance and test resources when experimenting with campaign creation.
+Не добавляйте `.env` в Git и не передавайте ключ API другим людям. Для экспериментов используйте отдельный тестовый экземпляр и тестовые ресурсы.
 
-## Configuration
+## Настройки
 
-| Variable | Purpose | Example |
+| Переменная | Назначение | Пример |
 | --- | --- | --- |
-| `KEITARO_URL` | Base URL of the tracker | `https://tracker.example` |
-| `KEITARO_API_KEY` | Server-side Admin API key | Set locally in `.env` |
-| `CAMPAIGN_PREFIX` | Prefix for new test campaigns and groups | `test_lkmavi_` |
-| `DATABASE_PATH` | Path to the local SQLite database | `./adrobot.sqlite3` |
-| `OFFER_CREATION_ENABLED` | Hide and block offer creation when access is known to be unavailable | `false` |
-| `REDIRECT_URL` | Destination for the country-filtered stream | `https://www.google.com/` |
-| `KEITARO_TIMEOUT` | API request timeout, in seconds | `20` |
-| `LOG_LEVEL` | Application log level | `INFO` or `DEBUG` |
-| `SERVICE_NAME` | Service name in application logs and Loki labels | `adrobot` |
-| `LOG_FILE` | Optional rotating JSON log file; set by Compose | `/logs/app.log` |
+| `KEITARO_URL` | Базовый адрес трекера | `https://tracker.example` |
+| `KEITARO_API_KEY` | Ключ Admin API, доступный только серверу | Укажите локально в `.env` |
+| `CAMPAIGN_PREFIX` | Префикс новых тестовых кампаний и групп | `test_lkmavi_` |
+| `DATABASE_PATH` | Путь к локальной базе SQLite | `./adrobot.sqlite3` |
+| `OFFER_CREATION_ENABLED` | Скрывает и блокирует создание офферов при известном запрете | `false` |
+| `REDIRECT_URL` | Адрес назначения потока с фильтром страны | `https://www.google.com/` |
+| `KEITARO_TIMEOUT` | Таймаут запроса к API в секундах | `20` |
+| `LOG_LEVEL` | Уровень журналирования приложения | `INFO` или `DEBUG` |
+| `SERVICE_NAME` | Имя сервиса в логах и метках Loki | `adrobot` |
+| `LOG_FILE` | Необязательный путь к JSON-журналу с ротацией; задаётся в Compose | `/logs/app.log` |
 
-Compose supplies container-specific database and log paths. Restart the stack with `make docker-up` after changing settings.
+Compose задаёт пути к базе и журналу внутри контейнера. После изменения настроек перезапустите стек командой `make docker-up`.
 
-## Campaigns and stream drafts
+## Кампании и черновики потоков
 
-New campaign names are prefixed automatically. The first stream sends traffic from the chosen country to `REDIRECT_URL`; the fallback stream routes other traffic to the selected offer. If a stream fails after the campaign is created, the application reports the campaign ID. It does not automatically retry creation or delete the partial campaign.
+Префикс добавляется к названию новой кампании автоматически. Первый поток направляет посетителей из выбранной страны на `REDIRECT_URL`, резервный — остальных посетителей на выбранный оффер. Если создание потока завершилось ошибкой после создания кампании, приложение покажет ID кампании. Оно не повторяет запрос и не удаляет частично созданную кампанию автоматически.
 
-In the editor, load streams by campaign ID. Adding, removing, restoring, or pinning offers changes the local draft. Publish each stream separately; cancel restores its last published snapshot. Before publishing, the application compares current upstream offer assignments with the loaded snapshot. If another user has changed them, cancel the draft and reload before making a new change. A stream with no active offers cannot be published.
+В редакторе укажите ID кампании и загрузите потоки. Добавление, удаление, восстановление и закрепление офферов меняют локальный черновик. Каждый поток публикуется отдельно; отмена возвращает последний опубликованный снимок. Перед публикацией приложение сравнивает текущие привязки офферов в Keitaro с загруженным снимком. Если другой пользователь изменил их, отмените черновик и загрузите потоки заново. Опубликовать поток без активных офферов нельзя.
 
-The comparison reduces accidental overwrites but is not an atomic lock: another client could change a stream between the check and the update. Avoid concurrent edits to the same stream. A failed or timed-out write may have an unknown result; inspect the stream in Keitaro before retrying.
+Сравнение снижает риск перезаписи, но не является блокировкой: другой клиент может изменить поток между проверкой и обновлением. Избегайте одновременного редактирования одного потока. При ошибке или таймауте записи результат может быть неизвестен — перед повторной попыткой проверьте состояние в Keitaro.
 
-## API permissions
+## Права API
 
-The application does not probe write permissions by creating resources. Keitaro may permit reading offers while denying their creation. Set `OFFER_CREATION_ENABLED=false` when that restriction is known; the UI hides creation and the server blocks direct requests. A `403` returned during other resource creation is remembered for the lifetime of the application process. These checks do not guarantee that actions without a known restriction will succeed, and process-local denials are not shared across multiple workers.
+Приложение не проверяет права на запись пробным созданием ресурсов. Keitaro может разрешать чтение офферов, но запрещать их создание. Если это ограничение известно, установите `OFFER_CREATION_ENABLED=false`: интерфейс скроет создание офферов, а сервер заблокирует прямой запрос. Ответ `403` при создании другого ресурса запоминается до перезапуска процесса. Отсутствие известного ограничения не гарантирует успешное выполнение действия; ограничения в памяти не разделяются между несколькими процессами.
 
-If the tracker returns `403`, ask its administrator to review the user and API-key permissions or select an existing resource. API errors are shown without exposing response bodies or credentials.
+Если трекер возвращает `403`, попросите администратора проверить права пользователя и ключа API либо выберите существующий ресурс. Ошибки API показываются без раскрытия тел ответов и учётных данных.
 
-## Observability
+## Журналы и Grafana
 
-The local stack uses Alloy to read only the application's rotating JSON log file, Loki for storage, and Grafana for viewing. Alloy does not access the Docker socket. New records include timestamp, service, level, logger, function, source line, and message. Request logging records the method, route template, status, and duration; it does not record request bodies, headers, or query parameters. Raw Uvicorn access logs and other containers are not collected by Loki.
+В локальном стеке Alloy читает только JSON-журнал приложения с ротацией, Loki хранит записи, Grafana показывает их. Alloy не получает доступ к Docker-сокету. Новые записи содержат время, сервис, уровень, модуль, функцию, номер строки и сообщение. Для HTTP-запросов записываются метод, шаблон маршрута, статус и время выполнения; тела запросов, заголовки и параметры URL не сохраняются. Сырые access-логи Uvicorn и логи других контейнеров в Loki не собираются.
 
-The Grafana dashboard provides service, level, module, and function filters. In Explore, examples include:
+На панели Grafana доступны фильтры по сервису, уровню, модулю и функции. Примеры запросов в Explore:
 
 ```logql
 {service="adrobot", function="log_requests"}
 {service="adrobot", level="ERROR"}
 ```
 
-Records written before JSON logging do not have the newer function and level labels. Loki retains logs for seven days, with deletion performed asynchronously. File rotation keeps up to three 5 MB backups; a long collector outage can result in lost records, so this setup is not an audit log with guaranteed delivery. Grafana is bound to localhost with anonymous Viewer access and temporary Explore editing enabled; Loki has no host port or built-in authentication. Do not expose this development stack to an untrusted network. Loki runs as root inside its container to write its local volume.
+У записей, созданных до перехода на JSON, нет новых меток функции и уровня. Loki хранит записи семь дней; удаление выполняется в фоне. Ротация файла сохраняет до трёх резервных копий по 5 МБ. При длительной остановке сборщика часть записей может быть потеряна, поэтому этот стек не является гарантированным журналом аудита.
 
-Use `make logs` for the application's container output and `make logs-stack` for collector and storage diagnostics.
+Grafana доступна только на localhost с анонимной ролью Viewer и временным редактированием для Explore; Loki не публикует порт на хост и не имеет встроенной аутентификации. Не открывайте этот стек в недоверенную сеть. Loki запускается от root внутри контейнера для записи в локальный том.
 
-## Development and checks
+Для вывода контейнера приложения используйте `make logs`, для диагностики сборщика и хранилища — `make logs-stack`.
+
+## Разработка и проверки
 
 ```bash
-make                 # List available commands
-make check           # Ruff, formatting, mypy, and all tests with coverage
-make test-unit       # Unit tests only
-make test-integration # Docker-backed integration tests
+make                  # Список доступных команд
+make check            # Ruff, форматирование, mypy и все тесты с покрытием
+make test-unit        # Только модульные тесты
+make test-integration # Интеграционные тесты в Docker
 ```
 
-Integration tests use Testcontainers and a simulated Keitaro HTTP API; they require Docker and access to `python:3.12-slim`. They do not call a real tracker or use your key. CI runs formatting, linting, type checking, unit and container integration tests on Python 3.12 and 3.13, plus a Docker image build and Compose validation. A successful test suite does not replace an end-to-end check against the target Keitaro version and permissions.
+Интеграционные тесты используют Testcontainers и имитацию HTTP API Keitaro; им нужны Docker и доступ к образу `python:3.12-slim`. Тесты не обращаются к реальному трекеру и не используют ваш ключ. CI запускает линтер, проверку форматирования и типов, модульные и контейнерные тесты на Python 3.12 и 3.13, сборку Docker-образа и проверку Compose. Успешные тесты не заменяют сквозную проверку на нужной версии Keitaro с фактическими правами ключа.
 
-## Project layout
+## Структура проекта
 
 ```text
-app/                 FastAPI assembly, routes, services, clients, and persistence
-frontend/templates/  Jinja2 templates
-frontend/static/     CSS and JavaScript
-observability/       Alloy, Loki, and Grafana configuration
-tests/unit/          Isolated unit and HTTP route tests
-tests/integration/   Docker-backed integration tests
+app/                 Сборка FastAPI, маршруты, сервисы, клиент API и хранилище
+frontend/templates/  Шаблоны Jinja2
+frontend/static/     CSS и JavaScript
+observability/       Конфигурация Alloy, Loki и Grafana
+tests/unit/          Модульные тесты и тесты HTTP-маршрутов
+tests/integration/   Интеграционные тесты с Docker
 ```
