@@ -36,6 +36,7 @@ class CampaignService:
         self, name: str, geo: str, offer_id: int, domain: int, group: int, source: int
     ) -> int:
         """Create a campaign and its GEO and offer streams."""
+        logger.debug("Campaign creation started: geo=%s", geo.strip().upper())
         name, geo = name.strip(), geo.strip().upper()
 
         if (
@@ -45,6 +46,7 @@ class CampaignService:
             or not geo.isalpha()
             or min(offer_id, domain, group, source) <= 0
         ):
+            logger.warning("Campaign creation validation failed: reason=invalid_input")
             raise ValueError("Укажите название, двухбуквенный GEO и корректные ID")
 
         prefix = self.client.settings.campaign_prefix
@@ -52,6 +54,7 @@ class CampaignService:
         suffix = name[len(prefix) :].strip() if name.startswith(prefix) else name
 
         if not suffix:
+            logger.warning("Campaign creation validation failed: reason=empty_name_suffix")
             raise ValueError("Введите название кампании после префикса")
 
         name = prefix + suffix
@@ -103,7 +106,7 @@ class CampaignService:
                 },
             )
         except KeitaroError as exc:
-            logger.warning("Campaign partially created: campaign_id=%s", campaign_id)
+            logger.error("Campaign partially created: campaign_id=%s", campaign_id)
 
             raise PartialCreationError(
                 f"Кампания {campaign_id} создана частично. Проверьте её в Keitaro: {exc}"
@@ -120,6 +123,11 @@ class CampaignService:
         for stream in streams:
             existing = self.store.get(int(stream["id"]))
             if existing and existing[0] != existing[1]:
+                logger.warning(
+                    "Campaign refresh blocked by pending draft: campaign_id=%s stream_id=%s",
+                    campaign_id,
+                    stream["id"],
+                )
                 raise ValueError("Сначала опубликуйте или отмените изменения потока")
         for stream in streams:
             current = self.store.get(int(stream["id"]))
@@ -162,6 +170,7 @@ class CampaignService:
         """Apply an offer action to the local stream draft."""
         current = self.store.get(stream_id)
         if not current:
+            logger.warning("Stream edit rejected: stream_id=%s reason=draft_not_loaded", stream_id)
             raise ValueError("Сначала загрузите потоки кампании")
         base, working = current
         offers = working["offers"]
@@ -204,10 +213,14 @@ class CampaignService:
         """Publish a draft after checking for upstream changes."""
         current = self.store.get(stream_id)
         if not current:
+            logger.warning(
+                "Stream publish rejected: stream_id=%s reason=draft_not_loaded", stream_id
+            )
             raise ValueError("Сначала загрузите потоки кампании")
         base, working = current
         remote = await self.client.request("GET", f"/streams/{stream_id}")
         if [list(x) for x in remote_signature(remote)] != base["signature"]:
+            logger.warning("Stream publish rejected: stream_id=%s reason=remote_changed", stream_id)
             raise ValueError(
                 "Поток изменился в Keitaro. Отмените черновик и загрузите потоки снова"
             )
@@ -219,12 +232,16 @@ class CampaignService:
             if not x["removed"]
         ]
         if not offers:
+            logger.warning(
+                "Stream publish rejected: stream_id=%s reason=no_active_offers", stream_id
+            )
             raise ValueError("Нельзя опубликовать поток без активных офферов")
         await self.client.request("PUT", f"/streams/{stream_id}", json={"offers": offers})
 
         saved = await self.client.request("GET", f"/streams/{stream_id}")
         expected = sorted((x["offer_id"], x["share"], x["state"]) for x in offers)
         if remote_signature(saved) != expected:
+            logger.error("Stream publish verification failed: stream_id=%s", stream_id)
             raise KeitaroError(
                 "Keitaro вернул неожиданные данные после сохранения; проверьте поток"
             )

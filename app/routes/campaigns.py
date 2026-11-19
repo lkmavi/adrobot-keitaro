@@ -1,5 +1,6 @@
 """Campaign creation and stream editor routes."""
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Form, Request
@@ -10,6 +11,7 @@ from app.clients.keitaro import KeitaroError
 from app.services.campaigns import PartialCreationError
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/health")
@@ -32,6 +34,7 @@ async def render_home(request: Request, message: str = "", error: str = "") -> H
 
         data["groups"] = [x for x in data["groups"] if x.get("type") in (None, "campaigns")]
     except KeitaroError as exc:
+        logger.error("Campaign creation page could not load resources: status=%s", exc.status_code)
         error = error or str(exc)
 
     return ctx.templates.TemplateResponse(
@@ -83,6 +86,7 @@ async def create_campaign(
         campaign_id = await ctx.service.create(name, geo, offer_id, domain_id, group_id, source_id)
         return await render_home(request, message=f"Кампания {campaign_id} создана")
     except (KeitaroError, PartialCreationError, ValueError) as exc:
+        logger.warning("Campaign creation request failed: error_type=%s", type(exc).__name__)
         return await render_home(request, error=str(exc))
 
 
@@ -103,6 +107,11 @@ async def render_editor(
             for s in streams
         ]
     except KeitaroError as exc:
+        logger.error(
+            "Campaign editor could not load data: campaign_id=%s status=%s",
+            campaign_id,
+            exc.status_code,
+        )
         rows, names, error = [], {}, str(exc)
     return ctx.templates.TemplateResponse(
         request=request,
@@ -133,6 +142,11 @@ async def fetch(request: Request, campaign_id: int) -> HTMLResponse:
         await ctx.service.fetch(campaign_id)
         return await render_editor(request, campaign_id, message="Потоки загружены")
     except (KeitaroError, ValueError) as exc:
+        logger.warning(
+            "Campaign stream refresh failed: campaign_id=%s error_type=%s",
+            campaign_id,
+            type(exc).__name__,
+        )
         return await render_editor(request, campaign_id, error=str(exc))
 
 
@@ -157,4 +171,11 @@ async def edit_stream(
 
         return RedirectResponse(f"/campaigns/{campaign_id}", status_code=303)
     except (KeitaroError, ValueError) as exc:
+        logger.warning(
+            "Stream action failed: campaign_id=%s stream_id=%s action=%s error_type=%s",
+            campaign_id,
+            stream_id,
+            action,
+            type(exc).__name__,
+        )
         return await render_editor(request, campaign_id, error=str(exc))

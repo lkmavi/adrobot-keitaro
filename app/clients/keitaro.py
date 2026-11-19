@@ -30,9 +30,13 @@ class KeitaroClient:
     async def request(self, method: str, path: str, **kwargs: Any) -> Any:
         """Send an Admin API request and translate upstream failures."""
         if not self.settings.keitaro_url or not self.settings.keitaro_api_key:
+            logger.error("Keitaro request rejected: API URL or API key is not configured")
             raise KeitaroError("Укажите KEITARO_URL и KEITARO_API_KEY в .env")
 
         base = self.settings.keitaro_url.rstrip("/") + "/admin_api/v1"
+        logger.debug(
+            "Keitaro request started: method=%s endpoint=%s", method, path.split("?", 1)[0]
+        )
         try:
             async with httpx.AsyncClient(
                 timeout=self.settings.keitaro_timeout, transport=self.transport
@@ -44,15 +48,21 @@ class KeitaroClient:
                     **kwargs,
                 )
 
-                logger.debug("Keitaro response: method=%s status=%s", method, response.status_code)
+                logger.debug(
+                    "Keitaro response received: method=%s status=%s", method, response.status_code
+                )
                 response.raise_for_status()
 
                 return response.json() if response.content else None
         except httpx.HTTPStatusError as exc:
-            logger.warning(
-                "Ошибка Keitaro response: method=%s status=%s", method, exc.response.status_code
-            )
             status = exc.response.status_code
+            log = logger.error if status >= 500 else logger.warning
+            log(
+                "Keitaro request failed: method=%s endpoint=%s status=%s",
+                method,
+                path.split("?", 1)[0],
+                status,
+            )
 
             if status == 403:
                 raise KeitaroError(
@@ -62,5 +72,11 @@ class KeitaroClient:
                 ) from exc
             raise KeitaroError(f"Keitaro вернул HTTP {status}", status) from exc
         except (httpx.RequestError, ValueError) as exc:
-            logger.warning("Keitaro connection or response format error: method=%s", method)
+            logger.error(
+                "Keitaro connection or response format error: "
+                "method=%s endpoint=%s exception_type=%s",
+                method,
+                path.split("?", 1)[0],
+                type(exc).__name__,
+            )
             raise KeitaroError("Нет ответа Keitaro или ответ имеет неверный формат") from exc
