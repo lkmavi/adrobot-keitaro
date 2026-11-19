@@ -1,0 +1,11 @@
+<dialog id="resource-dialog" aria-labelledby="resource-dialog-title">
+  <form id="resource-form">
+    <div class="dialog-heading"><div><p class="overline">РЕСУРСЫ KEITARO</p><h2 id="resource-dialog-title">Создание ресурса</h2></div><button type="button" class="dialog-close" aria-label="Закрыть">×</button></div>
+    <p class="muted" id="resource-dialog-description"></p>
+    <input type="hidden" name="kind">
+    <label class="field"><span id="resource-name-label">Название</span><input name="name" required autocomplete="off"></label>
+    <label class="field" id="resource-url-field" hidden><span>Ссылка назначения</span><input name="url" type="url" placeholder="https://example.com/offer"></label>
+    <p class="dialog-error" role="alert" hidden></p>
+    <div class="dialog-actions"><button type="button" class="secondary dialog-cancel">Отмена</button><button type="submit" class="primary">Создать в Keitaro</button></div>
+  </form>
+</dialog>

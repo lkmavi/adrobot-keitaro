@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Создание кампании{% endblock %}
+{% block breadcrumb %}Создание кампании{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow"><span class="eyebrow-dot"></span> КАМПАНИИ / СОЗДАНИЕ</p><h1>Новая кампания</h1><p class="lead">Настройте кампанию и её потоки в несколько шагов.</p></div><span class="page-number">01 <span>/ 02</span></span></div>
+<div class="create-layout">
+  <section class="panel form-panel" aria-labelledby="campaign-title">
+    <div class="panel-heading"><div><p class="overline">ОСНОВНЫЕ НАСТРОЙКИ</p><h2 id="campaign-title">Параметры кампании</h2><p>Выберите существующие ресурсы из Keitaro.</p></div><span class="panel-icon">↗</span></div>
+    <form method="post" action="/campaigns" class="campaign-form">
+      <div class="form-grid">
+        <label class="field field-wide"><span>Название кампании <b>*</b></span><span class="name-input"><span class="name-prefix" aria-hidden="true">{{ prefix }}</span><input name="name" data-prefix="{{ prefix }}" required pattern=".*\S.*" title="Введите название после префикса" placeholder="campaign1" autocomplete="off" aria-describedby="name-help"></span><small id="name-help">Введите название после префикса. Например: <strong>{{ prefix }}campaign1</strong></small></label>
+        <label class="field"><span>Страна <b>*</b></span><input name="geo" required pattern="[A-Za-z]{2}" maxlength="2" placeholder="Например, AU" autocomplete="off"><small>Двухбуквенный код страны</small></label>
+        <label class="field"><span>Оффер <b>*</b></span><select name="offer_id" data-resource="offer" required><option value="">Выберите оффер</option>{% for item in offers %}<option value="{{ item.id }}">{{ item.id }} · {{ item.name }}</option>{% endfor %}</select><small>Цель для остальных посетителей</small><span class="resource-actions">{% if creation_rights.offer %}<button type="button" data-create-resource="offer">+ Создать</button>{% else %}<small class="permission-note">Создание недоступно для текущего ключа</small>{% endif %}<button type="button" data-refresh-resource="offer">↻ Обновить</button></span></label>
+        <div class="form-divider field-wide"><span>РЕСУРСЫ KEITARO</span></div>
+        <label class="field"><span>Домен <b>*</b></span><select name="domain_id" data-resource="domain" required><option value="">Выберите домен</option>{% for item in domains %}<option value="{{ item.id }}">{{ item.name|default(item.domain|default(item.id)) }}</option>{% endfor %}</select><span class="resource-actions">{% if creation_rights.domain %}<button type="button" data-create-resource="domain">+ Создать</button>{% else %}<small class="permission-note">Создание недоступно для текущего ключа</small>{% endif %}<button type="button" data-refresh-resource="domain">↻ Обновить</button></span></label>
+        <label class="field"><span>Группа <b>*</b></span><select name="group_id" data-resource="group" required><option value="">Выберите группу</option>{% for item in groups %}<option value="{{ item.id }}">{{ item.name }}</option>{% endfor %}</select><span class="resource-actions">{% if creation_rights.group %}<button type="button" data-create-resource="group">+ Создать</button>{% else %}<small class="permission-note">Создание недоступно для текущего ключа</small>{% endif %}<button type="button" data-refresh-resource="group">↻ Обновить</button></span></label>
+        <label class="field field-wide"><span>Источник трафика <b>*</b></span><select name="source_id" data-resource="source" required><option value="">Выберите источник</option>{% for item in sources %}<option value="{{ item.id }}">{{ item.name }}</option>{% endfor %}</select><span class="resource-actions">{% if creation_rights.source %}<button type="button" data-create-resource="source">+ Создать</button>{% else %}<small class="permission-note">Создание недоступно для текущего ключа</small>{% endif %}<button type="button" data-refresh-resource="source">↻ Обновить</button></span></label>
+      </div>
+      <p class="resources-link">Списки загружаются из Keitaro. Обновление не удалит введённые данные.</p>
+      <div class="form-footer"><span><b>*</b> Обязательные поля</span><button class="primary" type="submit">Создать кампанию <span aria-hidden="true">↗</span></button></div>
+    </form>
+  </section>
+  <aside class="context-column"><div class="flow-card"><p class="overline">СХЕМА МАРШРУТИЗАЦИИ</p><h2>Как пойдёт трафик</h2><p class="muted">После создания в кампании появятся два потока.</p><div class="flow-diagram"><div class="flow-node"><span class="node-number">01</span><div><strong>Страна совпадает</strong><small>Посетитель из выбранного GEO</small></div><span class="node-arrow">↗</span></div><div class="flow-target"><span class="target-dot"></span> {{ redirect_url }}</div><div class="flow-connector"></div><div class="flow-node"><span class="node-number muted-number">02</span><div><strong>Остальной трафик</strong><small>Резервный поток кампании</small></div><span class="node-arrow">↗</span></div><div class="flow-target"><span class="target-dot purple"></span> Выбранный оффер</div></div></div><div class="tip"><span class="tip-icon">✦</span><div><strong>Уже есть кампания?</strong><p>Загрузите её потоки и настройте распределение офферов.</p><a href="/editor">Перейти в редактор →</a></div></div></aside>
+</div>
+{% include "resource_dialog.html" %}
+<script src="/static/campaign-name.js?v=2" defer></script>
+<script src="/static/resources.js?v=2" defer></script>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Потоки кампании {{ campaign_id }}{% endblock %}
+{% block breadcrumb %}Редактор потоков / {{ campaign_id }}{% endblock %}
+{% block content %}
+<a class="back" href="/editor">← Все кампании</a>
+<div class="page-heading editor-heading"><div><p class="eyebrow"><span class="eyebrow-dot"></span> РЕДАКТОР / КАМПАНИЯ {{ campaign_id }}</p><h1>Потоки и офферы</h1><p class="lead">Проверяйте распределение и публикуйте изменения по каждому потоку.</p></div><form method="post" action="/campaigns/{{ campaign_id }}/fetch"><button class="secondary refresh" type="submit"><span>↻</span> Загрузить потоки</button></form></div>
+
+<div class="editor-info"><span class="info-icon">ⓘ</span><span>Изменения сохраняются как черновик. Чтобы отправить их в Keitaro, опубликуйте поток.</span></div>
+<div class="section-label"><div><p class="overline">СТРУКТУРА КАМПАНИИ</p><h2>Потоки <span class="count">{{ streams|length }}</span></h2></div><span>Кампания #{{ campaign_id }}</span></div>
+<div class="stream-list">
+{% for stream in streams %}
+{% set draft = stream.draft %}
+<section class="panel stream {% if draft and draft[0] != draft[1] %}dirty{% endif %}"><div class="stream-head"><div class="stream-ident"><span class="stream-icon">↗</span><div><p class="overline">ПОТОК #{{ stream.id }}</p><h2>{{ stream.name }}</h2></div></div><span class="badge {% if draft and draft[0] != draft[1] %}badge-draft{% endif %}"><span class="badge-dot"></span>{% if not draft %}Не загружен{% elif draft[0] != draft[1] %}Есть изменения{% else %}Опубликован{% endif %}</span></div>
+{% if draft %}{% set state = draft[1] %}
+{% if state.offers %}<div class="offer-header"><span>ОФФЕР</span><span>ДОЛЯ ТРАФИКА</span><span>УПРАВЛЕНИЕ</span></div>{% endif %}
+{% if not state.offers %}<div class="empty-state"><span class="empty-icon">↗</span><div><strong>Офферов в потоке нет</strong><p>Этот поток может выполнять другую настройку маршрутизации.</p></div></div>{% endif %}
+{% for offer in state.offers %}
+<div class="offer {% if offer.removed %}removed{% endif %}"><div class="offer-name"><span class="offer-icon">◈</span><div><strong>{{ names.get(offer.offer_id, 'Оффер') }}</strong><small>ID {{ offer.offer_id }}{% if offer.removed %} · В архиве{% elif offer.pinned %} · Доля закреплена{% endif %}</small></div></div><div class="share-wrap"><strong class="share">{{ offer.share }}<small>%</small></strong><div class="progress" role="progressbar" aria-label="Доля трафика" aria-valuenow="{{ offer.share }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ offer.share }}%"></span></div></div>
+{% if not offer.removed %}<form method="post" action="/campaigns/{{ campaign_id }}/streams/{{ stream.id }}" class="inline"><input type="hidden" name="offer_id" value="{{ offer.offer_id }}"><input name="share" type="number" min="0" max="100" value="{{ offer.share }}" aria-label="Закреплённая доля оффера {{ offer.offer_id }}"><button name="action" value="{{ 'unpin' if offer.pinned else 'pin' }}" class="text-button">{{ 'Открепить' if offer.pinned else 'Закрепить' }}</button><button name="action" value="remove" class="text-button danger">Удалить</button></form>{% else %}<form method="post" action="/campaigns/{{ campaign_id }}/streams/{{ stream.id }}"><input type="hidden" name="offer_id" value="{{ offer.offer_id }}"><button name="action" value="restore" class="text-button">Вернуть</button></form>{% endif %}</div>
+{% endfor %}
+{% if state.offers %}<form method="post" action="/campaigns/{{ campaign_id }}/streams/{{ stream.id }}" class="add-offer"><label class="field"><span>Добавить оффер</span><select name="offer_id" data-resource="offer" required><option value="">Выберите оффер</option>{% for offer in offers %}<option value="{{ offer.id }}">{{ offer.id }} · {{ offer.name }}</option>{% endfor %}</select><span class="resource-actions">{% if creation_rights.offer %}<button type="button" data-create-resource="offer">+ Создать</button>{% else %}<small class="permission-note">Создание офферов недоступно для текущего ключа</small>{% endif %}<button type="button" data-refresh-resource="offer">↻ Обновить</button></span></label><button name="action" value="add" class="secondary">+ Добавить оффер</button></form>{% endif %}
+{% if draft[0] != draft[1] %}<div class="draft-footer"><div><strong>Изменения не опубликованы</strong><small>Они пока видны только в этом редакторе.</small></div><form method="post" action="/campaigns/{{ campaign_id }}/streams/{{ stream.id }}" class="actions"><button name="action" value="cancel" class="secondary">Отменить</button><button name="action" value="publish" class="primary">Опубликовать →</button></form></div>{% endif %}
+{% else %}<div class="empty-state"><span class="empty-icon">↓</span><div><strong>Поток не загружен</strong><p>Нажмите «Загрузить потоки», чтобы начать работу.</p></div></div>{% endif %}</section>
+{% else %}<div class="panel empty-state"><span class="empty-icon">≡</span><div><strong>Потоки не найдены</strong><p>Проверьте ID кампании или загрузите её снова.</p></div></div>{% endfor %}
+</div>
+{% include "resource_dialog.html" %}
+<script src="/static/resources.js?v=2" defer></script>
+{% endblock %}

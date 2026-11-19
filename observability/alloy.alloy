@@ -1,0 +1,24 @@
+local.file_match "adrobot" {
+  path_targets = [{__path__ = "/var/log/adrobot/app.log", service = sys.env("SERVICE_NAME"), environment = "local"}]
+}
+
+loki.source.file "adrobot" {
+  targets = local.file_match.adrobot.targets
+  forward_to = [loki.process.structured.receiver]
+}
+
+loki.process "structured" {
+  stage.json {
+    expressions = { level = "level", logger = "logger", function = "function" }
+  }
+  stage.labels {
+    values = { level = "", logger = "", function = "" }
+  }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
