@@ -7,6 +7,8 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+from app.repositories.migrations import upgrade_database
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,16 +20,11 @@ class Store:
     """
 
     def __init__(self, path: str):
-        """Initialize the SQLite database and its schema."""
+        """Apply pending schema upgrades before opening the draft store."""
         Path(path).parent.mkdir(parents=True, exist_ok=True)
 
         self.path = path
-
-        with closing(sqlite3.connect(path)) as db, db:
-            db.execute(
-                "CREATE TABLE IF NOT EXISTS drafts "
-                "(stream_id INTEGER PRIMARY KEY, base TEXT NOT NULL, working TEXT NOT NULL)"
-            )
+        upgrade_database(path)
         logger.info("Draft storage initialized: database=%s", path)
 
     def get(self, stream_id: int) -> tuple[dict[str, Any], dict[str, Any]] | None:

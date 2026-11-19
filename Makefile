@@ -1,4 +1,4 @@
-.PHONY: help install lint format format-check typecheck test test-unit test-integration coverage coverage-html check run docker-build docker-up docker-down logs logs-stack
+.PHONY: help install lint format format-check typecheck test test-unit test-integration coverage coverage-html check db-upgrade db-current run docker-build docker-up docker-down logs logs-stack
 
 .DEFAULT_GOAL := help
 
@@ -15,6 +15,8 @@ help:
 	  'make test-integration Запустить интеграционные тесты с Docker' \
 	  'make coverage         Запустить тесты с отчётом покрытия' \
 	  'make coverage-html    Создать HTML-отчёт покрытия' \
+	  'make db-upgrade       Применить миграции к локальной базе' \
+	  'make db-current       Показать версию схемы базы' \
 	  'make run              Запустить приложение локально' \
 	  'make docker-build     Собрать Docker-образ' \
 	  'make docker-up        Запустить приложение в Docker Compose' \
@@ -58,7 +60,14 @@ check:
 	$(MAKE) typecheck
 	$(MAKE) coverage
 
+db-upgrade:
+	uv run --frozen alembic upgrade head
+
+db-current:
+	uv run --frozen alembic current
+
 run:
+	uv run --frozen alembic upgrade head
 	uv run --frozen uvicorn app.main:app --reload
 
 docker-build:
